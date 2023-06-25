@@ -1,13 +1,14 @@
+import argparse
 import os
 import re
-import asyncio
+from typing import Optional
 
-from pptx import Presentation
+from pptx import Presentation, exc
 
-from .logger import logger
+from pptx_explainer import logger
 
 
-async def open_presentation(path: str):
+def open_presentation(path: str) -> Presentation:
     """Opens a presentation file asynchronously
 
     Args:
@@ -20,12 +21,12 @@ async def open_presentation(path: str):
         FileNotFoundError: if the path does not exist
         ValueError: if the path is not a pptx file
     """
-    await validate_path(path)
-    prs = await asyncio.get_running_loop().run_in_executor(None, Presentation, path)
-    return prs
+    validate_path(path)
+    presentation = Presentation(path)
+    return presentation
 
 
-def parse_slide(slide):
+def parse_slide(slide) -> Optional[dict]:
     """Gets the title and the text from all shapes in a slide
 
     Args:
@@ -38,18 +39,21 @@ def parse_slide(slide):
         Exception: if an error occurs while parsing the slide
     """
     try:
-        title = remove_special_characters(slide.shapes.title.text)
+        title = None
+        if hasattr(slide.shapes, 'title'):
+            title = remove_special_characters(slide.shapes.title.text)
         slide_text = [remove_special_characters(shape.text)
                       for shape in slide.shapes
-                      if shape.has_text_frame
-                      and shape.text != ""]
+                      if shape.has_text_frame and shape.text]
+        if len(slide_text) == 0 and not title:
+            return None
         if title in slide_text:
             slide_text.remove(title)
-        data = {"title": title, "text": slide_text}
-        return data
-    except Exception as e:
-        logger.error(f"Error in parse_presentation: {e} occurred")
-        raise RuntimeError("An error occurred while parsing the presentation.")
+        slide_data = {"title": title, "text": slide_text}
+        return slide_data
+    except exc.PythonPptxError as pptx_exc:
+        logger.error(f"An error occurred while parsing slide: {pptx_exc}")
+        return None
 
 
 def remove_special_characters(text):
@@ -67,7 +71,7 @@ def remove_special_characters(text):
     return text
 
 
-async def validate_path(path) -> None:
+def validate_path(path) -> None:
     """Validates the path is a real path and a pptx file
 
     Args:
@@ -87,3 +91,28 @@ async def validate_path(path) -> None:
     if not os.path.exists(path):
         logger.error('User entered an invalid path')
         raise FileNotFoundError(f'{path} does not exist')
+
+
+if __name__ == '__main__':
+    # Create an argument parser
+    parser = argparse.ArgumentParser(description='Script to parse pptx file to text.')
+
+    # Add an argument for the file path
+    parser.add_argument('file_path', nargs=1, type=str, help='Path to the pptx file')
+
+    # Parse the command-line arguments
+    args = parser.parse_args()
+
+    # Extract the file path from the arguments
+    file_path = args.file_path
+
+    # Check if the file path argument is missing
+    if not file_path:
+        parser.error('Please provide a path to the pptx file.')
+    try:
+        # Call the function to process the file
+        prs = open_presentation(file_path)
+        data = [parse_slide(sl) for sl in prs.slides]
+        print(data)
+    except Exception as e:
+        print(e)
