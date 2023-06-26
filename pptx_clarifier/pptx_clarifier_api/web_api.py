@@ -1,10 +1,13 @@
 import os
+import threading
 from datetime import datetime
 from glob import glob
 from uuid import uuid4
 from dotenv import load_dotenv
-from pptx_clarifier_api import uploads_directory, outputs_directory, logs_directory
 from flask import Flask, request, make_response, jsonify
+
+from ..definitions import uploads_directory, outputs_directory
+from pptx_clarifier.pptx_clarifier_api import api_logger as logger
 
 load_dotenv()
 
@@ -48,15 +51,16 @@ def save_file():
         A JSON object containing the UUID of the uploaded file.
     """
 
-    uploaded_file = request.files['the_file']
+    uploaded_file = request.files['file']
     file_uuid = process_file(uploaded_file)
+    logger.info(f"file uploaded with uid: {file_uuid}")
     return make_response({"file_uuid": file_uuid, "message": "file uploaded successfully"}, 200)
 
 
 @app.get('/upload')
 def upload_file():
     return "<form action=\"\" method=\"post\" enctype=\"multipart/form-data\">" \
-           "<input type=\"file\" name=\"the_file\" />" \
+           "<input type=\"file\" name=\"file\" />" \
            "<input type=\"submit\" value=\"Upload\" />" \
            "</form>"
 

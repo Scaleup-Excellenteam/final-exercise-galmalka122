@@ -3,14 +3,19 @@ import asyncio
 import os
 
 import openai
+from dotenv import load_dotenv
 
-from pptx_explainer import logger
+from pptx_clarifier.pptx_explainer import explainer_logger as logger
 
+load_dotenv()
+apikey = os.getenv("OPENAI_API_KEY")
+
+print(apikey)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 # Set the maximum number of retries
 max_retries = 3
 # Set the timeout value (in seconds)
-timeout = 30
+timeout = 100
 
 
 async def retry_on_exception(attempt, exception):

@@ -1,13 +1,6 @@
-import os
-import logging
-import sys
-from logging.handlers import TimedRotatingFileHandler
+from .. import logger
 
-
-from dotenv import load_dotenv
-load_dotenv()
-
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+explainer_logger = logger.setup_log("clarifier", __name__)
 
 initial_prompt = """
 You supply concise and to the point explanations about PowerPoint slides.
@@ -41,36 +34,3 @@ explanations for each slide without any interactive text.
 
 
 """
-
-load_dotenv()
-
-path = os.path.dirname(__file__)
-
-# Set the paths to the uploads and outputs directories
-uploads_directory = os.path.join(path, "uploads")
-outputs_directory = os.path.join(path, "outputs")
-logs_directory = os.path.join(path, "logs")
-
-os.makedirs(logs_directory, exist_ok=True)
-os.makedirs(uploads_directory, exist_ok=True)
-os.makedirs(outputs_directory, exist_ok=True)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# Define logging format
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Create a TimedRotatingFileHandler and add it to the logger
-file_handler = TimedRotatingFileHandler(f'{logs_directory}/explainer.log', when='D', interval=1, backupCount=5)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-console_handler.setFormatter(formatter)
-
-# Add the console handler to the logger
-logger.addHandler(console_handler)
-

@@ -5,7 +5,7 @@ from typing import Optional
 
 from pptx import Presentation, exc
 
-from pptx_explainer import logger
+from pptx_clarifier.pptx_explainer import explainer_logger as logger
 
 
 def open_presentation(path: str) -> Presentation:
@@ -91,6 +91,8 @@ def validate_path(path) -> None:
     if not os.path.exists(path):
         logger.error('User entered an invalid path')
         raise FileNotFoundError(f'{path} does not exist')
+    if not path.endswith('.pptx'):
+        raise ValueError(f'{path} is not a pptx file')
 
 
 if __name__ == '__main__':

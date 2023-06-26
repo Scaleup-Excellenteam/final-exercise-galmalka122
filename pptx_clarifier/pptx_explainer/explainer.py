@@ -2,8 +2,11 @@ import asyncio
 import os
 import shutil
 
-from pptx_explainer import uploads_directory, outputs_directory, logger
-from pptx_explainer.pptx_clarifier import clarify
+import openai.error
+
+from ..definitions import uploads_directory, outputs_directory
+from pptx_clarifier.pptx_explainer.pptx_explainer import clarify
+from pptx_clarifier.pptx_explainer import explainer_logger as logger
 
 
 def get_file_name(path):
@@ -14,7 +17,7 @@ def get_file_name(path):
 
 # Create a console handler and add it to the logger
 files_in_process = set()
-files = [get_file_name(path) for path in os.listdir(outputs_directory)]
+files = [get_file_name(os.path.join(outputs_directory, path)) for path in os.listdir(outputs_directory)]
 
 processed_files = set(files)
 
@@ -33,11 +36,27 @@ def scan_directories():
     return unprocessed_files
 
 
+def error_handler(file_name: str, error: Exception):
+    logger.error(f"Error processing {file_name}: {error}")
+    os.remove(file_name)
+    files_in_process.remove(get_file_name(file_name))
+
+
 async def clarify_file(file_name: str):
     # Add the file to the files in process set
     files_in_process.add(get_file_name(file_name))
     logger.info(f"Processing {file_name}")
-    json_path = await clarify(file_name)
+    try:
+        json_path = await clarify(file_name)
+    except FileNotFoundError as file_not_found_error:
+        error_handler(file_name, file_not_found_error)
+        return
+    except ValueError as value_error:
+        error_handler(file_name, value_error)
+        return
+    except openai.error.OpenAIError as openai_error:
+        error_handler(file_name, openai_error)
+        return
     # Move the file to the outputs directory to mark it as processed
     shutil.move(json_path, outputs_directory)
     logger.info(f"Moved {file_name} to {outputs_directory}")
@@ -47,11 +66,14 @@ async def clarify_file(file_name: str):
 
 async def explainer():
     while True:
-        # Scan the uploads directory for files
-        unprocessed_files = scan_directories()
-        for file in unprocessed_files:
-            await clarify_file(file)
-        await asyncio.sleep(1)
+        try:
+            # Scan the uploads directory for files
+            unprocessed_files = scan_directories()
+            for file in unprocessed_files:
+                await clarify_file(file)
+            await asyncio.sleep(5)
+        except Exception as e:
+            logger
 
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@ import asyncio
 import json
 import os
 
-from pptx_explainer import logger, initial_prompt
-from pptx_explainer.openai_interactor import interact
-from pptx_explainer.presentation_parser import open_presentation, parse_slide
+from pptx_clarifier.pptx_explainer import initial_prompt, explainer_logger as logger
+from pptx_clarifier.pptx_explainer.openai_interactor import interact
+from pptx_clarifier.pptx_explainer.presentation_parser import open_presentation, parse_slide
 
 
 def create_slide_prompt(index, slide):
@@ -52,7 +52,7 @@ async def process_presentation(path: str):
                 responses[f"Slide {index}"] = res
         except ConnectionError as connection_error:
             logger.error(connection_error)
-            responses[f"Slide {index}"] = f"Couldn't clarify slide {index}"
+            responses[f"Slide {index}"] = f"Could not clarify slide {index}"
 
     return responses
 
