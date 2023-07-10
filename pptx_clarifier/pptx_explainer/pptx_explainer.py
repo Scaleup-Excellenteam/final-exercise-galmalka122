@@ -1,8 +1,12 @@
 import argparse
 import asyncio
 import json
-import os
+from datetime import datetime
 
+from sqlalchemy.orm import Session
+
+from pptx_clarifier.db import engine
+from pptx_clarifier.db.models import Upload
 from pptx_clarifier.pptx_explainer import initial_prompt, explainer_logger as logger
 from pptx_clarifier.pptx_explainer.openai_interactor import interact
 from pptx_clarifier.pptx_explainer.presentation_parser import open_presentation, parse_slide
@@ -27,20 +31,22 @@ def create_slide_prompt(index, slide):
     return slide_prompt
 
 
-async def process_presentation(path: str):
+async def process_presentation(upload, session):
     """Opens a presentation and parses its slides to openai chat prompts.
         Each prompt is sent to the AI asynchronously.
 
     Args:
-        path (str): Path to the presentation file
-
+        upload: Path to the presentation file
+        session: the database session
     Returns:
         list: List of all responses from the AI
     """
     messages = [{"role": "system", "content": initial_prompt}]
     # Open the presentation
-    presentation = open_presentation(path)
+    presentation = open_presentation(upload.get_upload_path())
     responses = {}
+    upload.status = "pending"
+    session.commit()
     # parse each slide to prompt, and send it to the AI asynchronously
     for index, slide in enumerate(presentation.slides, start=1):
         try:
@@ -57,29 +63,22 @@ async def process_presentation(path: str):
     return responses
 
 
-async def clarify(path):
+async def clarify(upload, session):
     """Generates an explanations for a PowerPoint presentation, and saves it to a json file.
 
     Args:
-        path (str): path to the presentation file
-
-    Returns:
-        str: path to the json file with the explanations
-
+        upload : the uploaded presentation file Object
+        session: the database session
     Raises:
         PathError: if the path does not exist
         ValueError: if the path is not a pptx file
         Exception: if an error occurs while parsing the presentation
     """
-    print(f'Clarifying {os.path.basename(path)}...')
-    logger.info(f'Clarifying {os.path.basename(path)}')
-    explanations = await process_presentation(path)
-    path_dir = os.path.dirname(__file__)
-    file_pptx = os.path.basename(path)
-    file_json = os.path.join(path_dir, f"{os.path.splitext(file_pptx)[0]}.json")
-    with open(file_json, "w") as file:
+    logger.info(f'Clarifying {upload.filename}')
+    explanations = await process_presentation(upload, session)
+    with open(str(upload.get_output_path()), "w") as file:
         json.dump(explanations, file)
-    return file_json
+    logger.info(f'Finished clarifying {upload.filename}')
 
 
 if __name__ == "__main__":
@@ -100,7 +99,8 @@ if __name__ == "__main__":
         parser.error('Please provide a path to the pptx file.')
 
     try:
+        upload_file = Upload(upload_time=datetime.now(), filename=file_path, status="processing")
         # Call the function to process the file
-        asyncio.run(clarify(file_path))
+        asyncio.run(clarify(upload_file))
     except Exception as e:
         print(e)
