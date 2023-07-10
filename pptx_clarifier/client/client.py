@@ -1,10 +1,7 @@
 import requests
-
+from pptx_clarifier.definitions import base_url
 from pptx_clarifier.client import client_logger as logger
 from pptx_clarifier.client.Status import Status
-
-# Define the URL of your local Flask app
-base_url = 'http://localhost:5000/upload'
 
 
 def upload(pptx_path: str) -> str:

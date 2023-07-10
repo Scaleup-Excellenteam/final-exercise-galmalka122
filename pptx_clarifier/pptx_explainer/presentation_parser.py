@@ -95,7 +95,7 @@ def validate_path(path) -> None:
         raise ValueError(f'{path} is not a pptx file')
 
 
-if __name__ == '__main__':
+def main():
     # Create an argument parser
     parser = argparse.ArgumentParser(description='Script to parse pptx file to text.')
 
@@ -118,3 +118,7 @@ if __name__ == '__main__':
         print(data)
     except Exception as e:
         print(e)
+
+
+if __name__ == '__main__':
+    main()
